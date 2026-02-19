@@ -1,0 +1,13 @@
+node_modules/
+dist/
+public/
+repomix-output.xml
+packages/api/data
+.yarn/
+packages/app/coverage/
+mutagen.yml*
+!packages/app/public/
+packages/app/public/*
+!packages/app/public/favicon.svg
+!packages/app/public/resume.pdf
+.env
