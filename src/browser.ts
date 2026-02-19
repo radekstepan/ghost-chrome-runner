@@ -7,26 +7,32 @@ export class BrowserController {
   private page: Page | null = null;
 
   async connect() {
-    try {
-      this.browser = await puppeteer.connect({
-        browserURL: 'http://127.0.0.1:9222',
-        defaultViewport: null
-      });
+    let retries = 10;
+    while (retries > 0) {
+      try {
+        console.log(`🔌 Connecting to Chrome... (${retries} attempts left)`);
+        this.browser = await puppeteer.connect({
+          browserURL: 'http://127.0.0.1:9222',
+          defaultViewport: null
+        });
 
-      const pages = await this.browser.pages();
-      this.page = pages.length > 0 ? pages[0] : await this.browser.newPage();
+        const pages = await this.browser.pages();
+        this.page = pages.length > 0 ? pages[0] : await this.browser.newPage();
 
-      console.log('✅ Connected to Ghost Chrome');
-      await this.enableStealth(this.page);
-      
-      this.browser.on('disconnected', () => {
-        console.log('❌ Chrome disconnected');
-        this.browser = null;
-      });
-    } catch (error) {
-      console.error('Failed to connect to Chrome:', error);
-      setTimeout(() => this.connect(), 2000);
+        console.log('✅ Connected to Ghost Chrome');
+        await this.enableStealth(this.page);
+        
+        this.browser.on('disconnected', () => {
+          console.log('❌ Chrome disconnected');
+          this.browser = null;
+        });
+        return;
+      } catch (error) {
+        retries--;
+        await new Promise(r => setTimeout(r, 1000));
+      }
     }
+    console.error('❌ Failed to connect to Chrome after multiple attempts');
   }
 
   isConnected() {
@@ -39,7 +45,7 @@ export class BrowserController {
 
   async navigate(url: string) {
     if (!this.page) throw new Error('Browser not connected');
-    await this.page.goto(url, { waitUntil: 'networkidle2' });
+    await this.page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
   }
 
   async stealthClick(selector: string) {
@@ -79,9 +85,9 @@ export class BrowserController {
     });
   }
 
-  // Added screenshot capability
   async takeScreenshot() {
     if (!this.page) throw new Error('Browser not connected');
-    return await this.page.screenshot({ encoding: 'base64' });
+    // Returns binary buffer instead of base64 string for better performance
+    return await this.page.screenshot({ type: 'png' });
   }
 }

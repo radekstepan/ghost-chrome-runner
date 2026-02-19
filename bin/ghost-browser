@@ -1,11 +1,7 @@
 #!/bin/bash
 # Wrapper for Ghost Chrome Runner API
-# Enables using the service as a CLI tool
 
-# Default API URL
 API_URL="http://localhost:3000"
-
-# Locate the project root relative to this script
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 function show_help() {
@@ -16,13 +12,15 @@ function show_help() {
   echo "  stop                Stop the service"
   echo "  restart             Restart the service"
   echo "  status              Check service health"
+  echo "  view                Open live browser view"
+  echo "  logs                Show Chrome internal logs"
   echo ""
   echo "Browser:"
   echo "  open <url>          Navigate to a URL"
   echo "  click <selector>    Click an element (human-like)"
   echo "  type <sel> <text>   Type text into an element (human-like)"
   echo "  snapshot            Get page text content"
-  echo "  screenshot          Get base64 screenshot"
+  echo "  screenshot [file]   Save screenshot (default: screenshot.png)"
   echo ""
 }
 
@@ -45,7 +43,7 @@ function check_status() {
 
 function wait_for_service() {
   echo "⏳ Waiting for Ghost Chrome to initialize..."
-  for i in {1..30}; do
+  for i in {1..60}; do
     if check_status; then
       echo "✅ Ghost Chrome is ready!"
       return 0
@@ -55,8 +53,6 @@ function wait_for_service() {
   echo "❌ Service timed out. Check 'docker logs ghost-browser'."
   exit 1
 }
-
-# --- Command Handlers ---
 
 case "$1" in
   start)
@@ -80,10 +76,21 @@ case "$1" in
     wait_for_service
     ;;
 
+  view)
+    echo "👀 Opening live view..."
+    # Try open (mac), xdg-open (linux), or start (windows)
+    open "$API_URL/view" 2>/dev/null || xdg-open "$API_URL/view" 2>/dev/null || start "$API_URL/view" 2>/dev/null || echo "Open browser to: $API_URL/view"
+    ;;
+
+  logs)
+    ensure_curl
+    curl -s "$API_URL/logs"
+    echo ""
+    ;;
+
   status)
     if check_status; then
       echo "✅ Online"
-      curl -s "$API_URL/health"
     else
       echo "🔴 Offline"
       exit 1
@@ -93,7 +100,6 @@ case "$1" in
   open)
     ensure_curl
     if [ -z "$2" ]; then echo "Usage: ghost-browser open <url>"; exit 1; fi
-    # JSON escape the URL
     SAFE_URL=$(echo "$2" | sed 's/"/\\"/g')
     curl -s -X POST "$API_URL/navigate" \
       -H "Content-Type: application/json" \
@@ -130,9 +136,9 @@ case "$1" in
 
   screenshot)
     ensure_curl
-    # Just output the JSON response containing base64
-    curl -s "$API_URL/screenshot"
-    echo ""
+    OUT_FILE="${2:-screenshot.png}"
+    curl -s "$API_URL/screenshot" -o "$OUT_FILE"
+    echo "📸 Saved to $OUT_FILE"
     ;;
 
   help|--help|-h)

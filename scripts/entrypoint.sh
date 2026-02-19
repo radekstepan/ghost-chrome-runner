@@ -9,18 +9,27 @@ rm -f /tmp/.X99-lock
 # 2. Start Xvfb (Virtual Monitor) in the background
 # Resolution 1920x1080 with 24-bit color depth
 echo "🖥️  Starting virtual display (Xvfb)..."
-Xvfb :99 -screen 0 1920x1080x24 &
+Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
 
 # Wait for Xvfb to be ready
 echo "⏳ Waiting for X server..."
-while ! xset -q > /dev/null 2>&1; do
-  sleep 0.5
+for i in {1..10}; do
+  if xdpyinfo -display :99 >/dev/null 2>&1; then
+    echo "✅ Display :99 is online"
+    break
+  fi
+  echo "   ...waiting ($i/10)"
+  sleep 1
 done
-echo "✅ Display :99 is online"
 
-# 3. Start Google Chrome Stable in the background
-# Note: We do NOT use --headless. We point it to DISPLAY=:99
-echo "🚀 Launching Google Chrome..."
+if ! xdpyinfo -display :99 >/dev/null 2>&1; then
+  echo "❌ Error: Xvfb failed to start."
+  exit 1
+fi
+
+# 3. Start Google Chrome Stable
+# Redirect output to file to suppress DBus errors in docker logs
+echo "🚀 Launching Google Chrome (logs -> /var/log/chrome.log)..."
 google-chrome-stable \
   --no-sandbox \
   --disable-dev-shm-usage \
@@ -34,15 +43,18 @@ google-chrome-stable \
   --disable-notifications \
   --disable-infobars \
   --disable-blink-features=AutomationControlled \
-  &
+  > /var/log/chrome.log 2>&1 &
 
 # 4. Wait for Chrome CDP to be reachable
 echo "⏳ Waiting for Chrome CDP on port 9222..."
-until curl -s http://127.0.0.1:9222/json/version > /dev/null; do
-  sleep 0.5
+for i in {1..30}; do
+  if curl -s http://127.0.0.1:9222/json/version > /dev/null; then
+    echo "✅ Chrome is ready and listening"
+    break
+  fi
+  sleep 1
 done
-echo "✅ Chrome is ready and listening"
 
-# 5. Start the Node.js Controller (The "Hands" of the Agent)
+# 5. Start the Node.js Controller
 echo "🧠 Starting Stealth Controller..."
 exec npm start

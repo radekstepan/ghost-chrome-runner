@@ -2,11 +2,13 @@
 FROM --platform=linux/amd64 node:22-bookworm
 
 # Install basic utilities
+# Added x11-xserver-utils which contains 'xset' used in entrypoint
 RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
     xvfb \
     x11-utils \
+    x11-xserver-utils \
     procps \
     iproute2 \
     curl \
@@ -22,7 +24,6 @@ RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | gpg --d
 RUN echo "deb [arch=amd64 signed-by=/usr/share/keyrings/googlechrome-linux-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google.list
 
 # Install Google Chrome Stable and fonts
-# We separate this step to ensure the repo lists are fresh
 RUN apt-get update && apt-get install -y \
     google-chrome-stable \
     fonts-ipafont-gothic \

@@ -12,9 +12,12 @@ services:
       - chrome_data:/data/chrome-profile
     environment:
       - CHROME_ARGS=--window-size=1920,1080
-    # Increase shared memory size to prevent Chrome crashes
+      # Auto-shutdown after 300 seconds (5 mins) of inactivity
+      # Set to 0 to disable
+      - IDLE_TIMEOUT=300
     shm_size: '2gb'
-    restart: unless-stopped
+    # Restart only if it crashes, NOT if we exit cleanly (idle timeout)
+    restart: on-failure
 
 volumes:
   chrome_data:
