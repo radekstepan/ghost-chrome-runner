@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Stealth browser automation service using real Chrome in Xvfb",
   "main": "dist/index.js",
+  "bin": {
+    "ghost-browser": "./bin/ghost-browser"
+  },
   "scripts": {
     "build": "tsc",
     "start": "ts-node src/index.ts",

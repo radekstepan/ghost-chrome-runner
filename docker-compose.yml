@@ -2,18 +2,18 @@ services:
   ghost-browser:
     build: .
     image: ghost-chrome-runner
+    # FORCE AMD64: Google Chrome only exists for x86_64 linux
+    platform: linux/amd64
     container_name: ghost-browser
     ports:
-      # The Control API (Agent talks to this)
       - "3000:3000"
-      # The raw CDP port (Optional: for connecting standard tools)
       - "9222:9222"
     volumes:
-      # Persist the Chrome profile so cookies/sessions survive restarts
       - chrome_data:/data/chrome-profile
     environment:
       - CHROME_ARGS=--window-size=1920,1080
-    shm_size: '2gb' # Chrome needs shared memory
+    # Increase shared memory size to prevent Chrome crashes
+    shm_size: '2gb'
     restart: unless-stopped
 
 volumes:

@@ -2,17 +2,16 @@ import express from 'express';
 import { BrowserController } from './browser';
 
 const app = express();
-app.use(express.json());
+// Increase limit for screenshots
+app.use(express.json({ limit: '10mb' }));
 
 const PORT = process.env.PORT || 3000;
 const browser = new BrowserController();
 
-// Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', chrome: browser.isConnected() });
 });
 
-// Navigate command
 app.post('/navigate', async (req, res) => {
   try {
     const { url } = req.body;
@@ -23,7 +22,6 @@ app.post('/navigate', async (req, res) => {
   }
 });
 
-// Stealth Click command (uses Bezier curves)
 app.post('/click', async (req, res) => {
   try {
     const { selector } = req.body;
@@ -34,7 +32,6 @@ app.post('/click', async (req, res) => {
   }
 });
 
-// Stealth Type command (uses variable delay)
 app.post('/type', async (req, res) => {
   try {
     const { selector, text } = req.body;
@@ -45,7 +42,6 @@ app.post('/type', async (req, res) => {
   }
 });
 
-// Snapshot (return page text/structure)
 app.get('/snapshot', async (req, res) => {
   try {
     const snapshot = await browser.getSnapshot();
@@ -55,7 +51,16 @@ app.get('/snapshot', async (req, res) => {
   }
 });
 
-// Initialize connection to local Chrome
+// Added screenshot endpoint
+app.get('/screenshot', async (req, res) => {
+  try {
+    const base64 = await browser.takeScreenshot();
+    res.json({ success: true, screenshot: base64 });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 browser.connect().then(() => {
   app.listen(PORT, () => {
     console.log(`👻 Ghost Controller listening on port ${PORT}`);

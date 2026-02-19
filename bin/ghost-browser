@@ -1,0 +1,147 @@
+#!/bin/bash
+# Wrapper for Ghost Chrome Runner API
+# Enables using the service as a CLI tool
+
+# Default API URL
+API_URL="http://localhost:3000"
+
+# Locate the project root relative to this script
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+function show_help() {
+  echo "Usage: ghost-browser <command> [args...]"
+  echo ""
+  echo "Lifecycle:"
+  echo "  start               Start the Ghost Chrome Docker service"
+  echo "  stop                Stop the service"
+  echo "  restart             Restart the service"
+  echo "  status              Check service health"
+  echo ""
+  echo "Browser:"
+  echo "  open <url>          Navigate to a URL"
+  echo "  click <selector>    Click an element (human-like)"
+  echo "  type <sel> <text>   Type text into an element (human-like)"
+  echo "  snapshot            Get page text content"
+  echo "  screenshot          Get base64 screenshot"
+  echo ""
+}
+
+function ensure_curl() {
+  if ! command -v curl &> /dev/null; then
+    echo "❌ Error: curl is required."
+    exit 1
+  fi
+}
+
+function check_status() {
+  local response
+  response=$(curl -s -o /dev/null -w "%{http_code}" "$API_URL/health")
+  if [ "$response" == "200" ]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+function wait_for_service() {
+  echo "⏳ Waiting for Ghost Chrome to initialize..."
+  for i in {1..30}; do
+    if check_status; then
+      echo "✅ Ghost Chrome is ready!"
+      return 0
+    fi
+    sleep 1
+  done
+  echo "❌ Service timed out. Check 'docker logs ghost-browser'."
+  exit 1
+}
+
+# --- Command Handlers ---
+
+case "$1" in
+  start)
+    if check_status; then
+      echo "✅ Service is already running."
+    else
+      echo "👻 Starting Ghost Chrome container..."
+      cd "$DIR" && docker-compose up -d
+      wait_for_service
+    fi
+    ;;
+
+  stop)
+    echo "🛑 Stopping Ghost Chrome..."
+    cd "$DIR" && docker-compose down
+    ;;
+
+  restart)
+    echo "🔄 Restarting..."
+    cd "$DIR" && docker-compose down && docker-compose up -d
+    wait_for_service
+    ;;
+
+  status)
+    if check_status; then
+      echo "✅ Online"
+      curl -s "$API_URL/health"
+    else
+      echo "🔴 Offline"
+      exit 1
+    fi
+    ;;
+
+  open)
+    ensure_curl
+    if [ -z "$2" ]; then echo "Usage: ghost-browser open <url>"; exit 1; fi
+    # JSON escape the URL
+    SAFE_URL=$(echo "$2" | sed 's/"/\\"/g')
+    curl -s -X POST "$API_URL/navigate" \
+      -H "Content-Type: application/json" \
+      -d "{\"url\": \"$SAFE_URL\"}"
+    echo ""
+    ;;
+
+  click)
+    ensure_curl
+    if [ -z "$2" ]; then echo "Usage: ghost-browser click <selector>"; exit 1; fi
+    SAFE_SEL=$(echo "$2" | sed 's/"/\\"/g')
+    curl -s -X POST "$API_URL/click" \
+      -H "Content-Type: application/json" \
+      -d "{\"selector\": \"$SAFE_SEL\"}"
+    echo ""
+    ;;
+
+  type)
+    ensure_curl
+    if [ -z "$3" ]; then echo "Usage: ghost-browser type <selector> <text>"; exit 1; fi
+    SAFE_SEL=$(echo "$2" | sed 's/"/\\"/g')
+    SAFE_TEXT=$(echo "$3" | sed 's/"/\\"/g')
+    curl -s -X POST "$API_URL/type" \
+      -H "Content-Type: application/json" \
+      -d "{\"selector\": \"$SAFE_SEL\", \"text\": \"$SAFE_TEXT\"}"
+    echo ""
+    ;;
+
+  snapshot)
+    ensure_curl
+    curl -s "$API_URL/snapshot"
+    echo ""
+    ;;
+
+  screenshot)
+    ensure_curl
+    # Just output the JSON response containing base64
+    curl -s "$API_URL/screenshot"
+    echo ""
+    ;;
+
+  help|--help|-h)
+    show_help
+    ;;
+
+  *)
+    echo "Unknown command: $1"
+    show_help
+    exit 1
+    ;;
+esac
