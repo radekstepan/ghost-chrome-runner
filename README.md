@@ -13,7 +13,8 @@ A high-stealth browser automation environment designed to bypass sophisticated b
 ## Installation
 
 ```bash
-git clone <repo>
+git clone git@github.com:radekstepan/ghost-chrome-runner.git
+cd ghost-chrome-runner
 yarn install
 ```
 
