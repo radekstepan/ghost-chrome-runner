@@ -35,8 +35,10 @@ ghost-browser open <url>      # Navigate to URL (waits for network idle)
 ghost-browser snapshot        # Get page text content
 ghost-browser snapshot -i     # Get interactive elements with refs (@e1, @e2)
 ghost-browser screenshot      # Save screenshot to screenshot.png
+ghost-browser highlight <sel> # Draw outline around element (visual check)
 ghost-browser tabs            # List open tabs/windows
 ghost-browser switch <index>  # Switch focus to a specific tab
+ghost-browser frame <sel>     # Focus an iframe ('main' to return to top)
 ghost-browser cookies         # View or set (ghost-browser cookies set name val)
 ```
 
@@ -46,11 +48,14 @@ All interactions use human simulation algorithms (Bezier curves, variable delays
 
 ```bash
 ghost-browser click <selector>          # Click an element
+ghost-browser dblclick <selector>       # Double-click an element
+ghost-browser drag <src> <dest>         # Drag one element to another
 ghost-browser hover <selector>          # Move mouse to element
 ghost-browser type <selector> <text>    # Focus and type text with jitter
 ghost-browser fill <selector> <text>    # Clear field and type text
 ghost-browser scroll <y_offset>         # Humanized scroll (positive = down)
 ghost-browser press <key>               # Press key (Enter, Escape, Tab, etc.)
+ghost-browser upload <sel> <path>       # Upload a file
 ghost-browser wait <selector>           # Wait for element to appear
 ```
 

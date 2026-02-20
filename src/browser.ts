@@ -82,6 +82,56 @@ export class BrowserController {
     await this.page.mouse.up();
   }
 
+  async stealthDoubleClick(selector: string) {
+    if (!this.page) throw new Error('Browser not connected');
+    
+    const resolvedSelector = this.resolveSelector(selector);
+    const element = await this.page.$(resolvedSelector);
+    if (!element) throw new Error(`Element not found: ${selector}`);
+
+    await element.evaluate((el) => el.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+    await new Promise(r => setTimeout(r, 500));
+
+    const box = await element.boundingBox();
+    if (!box) throw new Error('Element is not visible after scroll');
+
+    const x = box.x + box.width / 2 + (Math.random() * 10 - 5);
+    const y = box.y + box.height / 2 + (Math.random() * 10 - 5);
+
+    await moveMouseHumanLike(this.page, x, y);
+    
+    // Perform two clicks with a small human delay between them
+    await this.page.mouse.down();
+    await new Promise(r => setTimeout(r, Math.random() * 30 + 30));
+    await this.page.mouse.up();
+    await new Promise(r => setTimeout(r, Math.random() * 150 + 50));
+    await this.page.mouse.down();
+    await new Promise(r => setTimeout(r, Math.random() * 30 + 30));
+    await this.page.mouse.up();
+  }
+
+  async stealthDragAndDrop(sourceSelector: string, targetSelector: string) {
+    if (!this.page) throw new Error('Browser not connected');
+
+    const source = await this.page.$(this.resolveSelector(sourceSelector));
+    const target = await this.page.$(this.resolveSelector(targetSelector));
+    if (!source || !target) throw new Error('Source or Target element not found');
+
+    const sourceBox = await source.boundingBox();
+    const targetBox = await target.boundingBox();
+    if (!sourceBox || !targetBox) throw new Error('Source or Target element not visible');
+
+    // Move to source and grab
+    await moveMouseHumanLike(this.page, sourceBox.x + sourceBox.width/2, sourceBox.y + sourceBox.height/2);
+    await this.page.mouse.down();
+    await new Promise(r => setTimeout(r, 200));
+
+    // Move to target and drop
+    await moveMouseHumanLike(this.page, targetBox.x + targetBox.width/2, targetBox.y + targetBox.height/2);
+    await new Promise(r => setTimeout(r, 200));
+    await this.page.mouse.up();
+  }
+
   async stealthHover(selector: string) {
     if (!this.page) throw new Error('Browser not connected');
     
@@ -139,6 +189,51 @@ export class BrowserController {
         await this.page.mouse.wheel({ deltaY: stepY });
         await new Promise(r => setTimeout(r, Math.random() * 50 + 50));
     }
+  }
+
+  async uploadFile(selector: string, filePath: string) {
+    if (!this.page) throw new Error('Browser not connected');
+    const resolvedSelector = this.resolveSelector(selector);
+    const element = await this.page.$(resolvedSelector);
+    if (!element) throw new Error(`Element not found: ${selector}`);
+    await (element as any).uploadFile(filePath);
+  }
+
+  async highlightElement(selector: string) {
+    if (!this.page) throw new Error('Browser not connected');
+    const resolvedSelector = this.resolveSelector(selector);
+    const element = await this.page.$(resolvedSelector);
+    if (!element) throw new Error(`Element not found: ${selector}`);
+
+    await element.evaluate((el: any) => {
+      const originalOutline = el.style.outline;
+      el.style.outline = '5px solid #ff00ff';
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => {
+        el.style.outline = originalOutline;
+      }, 3000);
+    });
+  }
+
+  async switchToFrame(selector: string) {
+    if (!this.page) throw new Error('Browser not connected');
+    const resolvedSelector = this.resolveSelector(selector);
+    const handle = await this.page.$(resolvedSelector);
+    if (!handle) throw new Error(`Frame handle not found: ${selector}`);
+    const frame = await handle.contentFrame();
+    if (!frame) throw new Error(`Element is not a frame: ${selector}`);
+    // Puppeteer's Page and Frame have similar APIs for many things, 
+    // but Page is required for things like screenshots.
+    // In our simplified controller, we'll store frame in the 'page' reference
+    // so subsequent actions are performed on the frame.
+    this.page = frame as any as Page;
+  }
+
+  async switchToMainFrame() {
+    if (!this.browser) throw new Error('Browser not connected');
+    const pages = await this.browser.pages();
+    // Re-set initial page
+    this.page = pages[0];
   }
 
   async keyboardPress(key: string) {

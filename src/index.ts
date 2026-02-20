@@ -49,8 +49,56 @@ app.post('/navigate', async (req, res) => {
 
 app.post('/click', async (req, res) => {
   try {
+    const { selector, double } = req.body;
+    if (double) {
+      await browser.stealthDoubleClick(selector);
+    } else {
+      await browser.stealthClick(selector);
+    }
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.post('/drag', async (req, res) => {
+  try {
+    const { source, target } = req.body;
+    await browser.stealthDragAndDrop(source, target);
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.post('/upload', async (req, res) => {
+  try {
+    const { selector, filePath } = req.body;
+    await browser.uploadFile(selector, filePath);
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.post('/frame', async (req, res) => {
+  try {
     const { selector } = req.body;
-    await browser.stealthClick(selector);
+    if (!selector || selector === 'main' || selector === 'default') {
+      await browser.switchToMainFrame();
+    } else {
+      await browser.switchToFrame(selector);
+    }
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.post('/highlight', async (req, res) => {
+  try {
+    const { selector } = req.body;
+    await browser.highlightElement(selector);
     res.json({ success: true });
   } catch (e: any) {
     res.status(500).json({ success: false, error: e.message });

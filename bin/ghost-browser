@@ -18,6 +18,8 @@ function show_help() {
   echo "Browser:"
   echo "  open <url>          Navigate to a URL"
   echo "  click <selector>    Click an element (human-like)"
+  echo "  dblclick <selector> Double-click an element"
+  echo "  drag <src> <dest>   Drag and drop (human-like)"
   echo "  type <sel> <text>   Type text into an element (human-like)"
   echo "  fill <sel> <text>   Clear and type text (human-like)"
   echo "  hover <selector>    Hover an element (human-like)"
@@ -26,6 +28,9 @@ function show_help() {
   echo "  wait <selector>     Wait for element to appear"
   echo "  tabs                List open tabs"
   echo "  switch <index>      Switch focus to tab"
+  echo "  frame <sel>         Switch to iframe ('main' to exit)"
+  echo "  upload <sel> <path> Upload file"
+  echo "  highlight <sel>     Highlight element (visual feedback)"
   echo "  cookies             List cookies"
   echo "  cookies set <n> <v> Set cookie"
   echo "  snapshot            Get page text content"
@@ -121,6 +126,58 @@ case "$1" in
     if [ -z "$2" ]; then echo "Usage: ghost-browser click <selector>"; exit 1; fi
     SAFE_SEL=$(echo "$2" | sed 's/"/\\"/g')
     curl -s -X POST "$API_URL/click" \
+      -H "Content-Type: application/json" \
+      -d "{\"selector\": \"$SAFE_SEL\", \"double\": false}"
+    echo ""
+    ;;
+
+  dblclick)
+    ensure_curl
+    if [ -z "$2" ]; then echo "Usage: ghost-browser dblclick <selector>"; exit 1; fi
+    SAFE_SEL=$(echo "$2" | sed 's/"/\\"/g')
+    curl -s -X POST "$API_URL/click" \
+      -H "Content-Type: application/json" \
+      -d "{\"selector\": \"$SAFE_SEL\", \"double\": true}"
+    echo ""
+    ;;
+
+  drag)
+    ensure_curl
+    if [ -z "$3" ]; then echo "Usage: ghost-browser drag <src> <dest>"; exit 1; fi
+    SAFE_SRC=$(echo "$2" | sed 's/"/\\"/g')
+    SAFE_DEST=$(echo "$3" | sed 's/"/\\"/g')
+    curl -s -X POST "$API_URL/drag" \
+      -H "Content-Type: application/json" \
+      -d "{\"source\": \"$SAFE_SRC\", \"target\": \"$SAFE_DEST\"}"
+    echo ""
+    ;;
+
+  upload)
+    ensure_curl
+    if [ -z "$3" ]; then echo "Usage: ghost-browser upload <sel> <path>"; exit 1; fi
+    SAFE_SEL=$(echo "$2" | sed 's/"/\\"/g')
+    SAFE_PATH=$(echo "$3" | sed 's/"/\\"/g')
+    curl -s -X POST "$API_URL/upload" \
+      -H "Content-Type: application/json" \
+      -d "{\"selector\": \"$SAFE_SEL\", \"filePath\": \"$SAFE_PATH\"}"
+    echo ""
+    ;;
+
+  frame)
+    ensure_curl
+    if [ -z "$2" ]; then echo "Usage: ghost-browser frame <selector>"; exit 1; fi
+    SAFE_SEL=$(echo "$2" | sed 's/"/\\"/g')
+    curl -s -X POST "$API_URL/frame" \
+      -H "Content-Type: application/json" \
+      -d "{\"selector\": \"$SAFE_SEL\"}"
+    echo ""
+    ;;
+
+  highlight)
+    ensure_curl
+    if [ -z "$2" ]; then echo "Usage: ghost-browser highlight <selector>"; exit 1; fi
+    SAFE_SEL=$(echo "$2" | sed 's/"/\\"/g')
+    curl -s -X POST "$API_URL/highlight" \
       -H "Content-Type: application/json" \
       -d "{\"selector\": \"$SAFE_SEL\"}"
     echo ""
