@@ -18,6 +18,14 @@ cd ghost-chrome-runner
 yarn install
 ```
 
+## Updating
+
+To update to the latest version and rebuild the browser environment:
+
+```bash
+./bin/ghost-browser update
+```
+
 ## Usage (CLI Wrapper)
 
 Use the `bin/ghost-browser` script to control the lifecycle and actions.

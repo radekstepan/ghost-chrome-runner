@@ -36,6 +36,7 @@ function show_help() {
   echo "  start               Start the Ghost Chrome Docker service"
   echo "  stop                Stop the service"
   echo "  restart             Restart the service"
+  echo "  update              Update project code and rebuild container"
   echo "  status              Check service health"
   echo "  view                Open live browser view"
   echo "  logs                Show Chrome internal logs"
@@ -113,6 +114,14 @@ case "$1" in
     echo "🔄 Restarting..."
     cd "$DIR" && $DC_CMD down && $DC_CMD up -d
     wait_for_service
+    ;;
+
+  update)
+    echo "🔄 Updating Ghost Chrome..."
+    git pull origin main
+    nvm use
+    yarn install
+    ./scripts/docker-reset.sh
     ;;
 
   view)

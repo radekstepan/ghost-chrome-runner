@@ -25,7 +25,16 @@ allowed-tools: Bash(ghost-browser:*)
 ghost-browser start           # Boot the Docker container (Safe to run repeatedly)
 ghost-browser stop            # Stop and remove the container
 ghost-browser restart         # Restart the service (get a fresh browser session)
+ghost-browser update          # Update from git and rebuild the environment
 ghost-browser status          # Check service health
+```
+
+### Updating to Latest
+
+If you need to update to the latest version of the toolkit:
+
+```bash
+ghost-browser update          # Automatically pull code, install dependencies, and rebuild the browser container
 ```
 
 ### Navigation & Inspection
