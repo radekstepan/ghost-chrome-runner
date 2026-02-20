@@ -19,6 +19,15 @@ function show_help() {
   echo "  open <url>          Navigate to a URL"
   echo "  click <selector>    Click an element (human-like)"
   echo "  type <sel> <text>   Type text into an element (human-like)"
+  echo "  fill <sel> <text>   Clear and type text (human-like)"
+  echo "  hover <selector>    Hover an element (human-like)"
+  echo "  scroll <y>          Scroll by y pixels"
+  echo "  press <key>         Press a key (Enter, Escape, etc.)"
+  echo "  wait <selector>     Wait for element to appear"
+  echo "  tabs                List open tabs"
+  echo "  switch <index>      Switch focus to tab"
+  echo "  cookies             List cookies"
+  echo "  cookies set <n> <v> Set cookie"
   echo "  snapshot            Get page text content"
   echo "  screenshot [file]   Save screenshot (default: screenshot.png)"
   echo ""
@@ -128,9 +137,91 @@ case "$1" in
     echo ""
     ;;
 
+  fill)
+    ensure_curl
+    if [ -z "$3" ]; then echo "Usage: ghost-browser fill <selector> <text>"; exit 1; fi
+    SAFE_SEL=$(echo "$2" | sed 's/"/\\"/g')
+    SAFE_TEXT=$(echo "$3" | sed 's/"/\\"/g')
+    curl -s -X POST "$API_URL/fill" \
+      -H "Content-Type: application/json" \
+      -d "{\"selector\": \"$SAFE_SEL\", \"text\": \"$SAFE_TEXT\"}"
+    echo ""
+    ;;
+
+  hover)
+    ensure_curl
+    if [ -z "$2" ]; then echo "Usage: ghost-browser hover <selector>"; exit 1; fi
+    SAFE_SEL=$(echo "$2" | sed 's/"/\\"/g')
+    curl -s -X POST "$API_URL/hover" \
+      -H "Content-Type: application/json" \
+      -d "{\"selector\": \"$SAFE_SEL\"}"
+    echo ""
+    ;;
+
+  scroll)
+    ensure_curl
+    if [ -z "$2" ]; then echo "Usage: ghost-browser scroll <y>"; exit 1; fi
+    curl -s -X POST "$API_URL/scroll" \
+      -H "Content-Type: application/json" \
+      -d "{\"y\": $2}"
+    echo ""
+    ;;
+
+  press)
+    ensure_curl
+    if [ -z "$2" ]; then echo "Usage: ghost-browser press <key>"; exit 1; fi
+    curl -s -X POST "$API_URL/press" \
+      -H "Content-Type: application/json" \
+      -d "{\"key\": \"$2\"}"
+    echo ""
+    ;;
+
+  wait)
+    ensure_curl
+    if [ -z "$2" ]; then echo "Usage: ghost-browser wait <selector>"; exit 1; fi
+    SAFE_SEL=$(echo "$2" | sed 's/"/\\"/g')
+    TIMEOUT="${3:-30000}"
+    curl -s -X POST "$API_URL/wait" \
+      -H "Content-Type: application/json" \
+      -d "{\"selector\": \"$SAFE_SEL\", \"timeout\": $TIMEOUT}"
+    echo ""
+    ;;
+
+  tabs)
+    ensure_curl
+    curl -s "$API_URL/tabs"
+    echo ""
+    ;;
+
+  switch)
+    ensure_curl
+    if [ -z "$2" ]; then echo "Usage: ghost-browser switch <index>"; exit 1; fi
+    curl -s -X POST "$API_URL/switch" \
+      -H "Content-Type: application/json" \
+      -d "{\"index\": $2}"
+    echo ""
+    ;;
+
+  cookies)
+    ensure_curl
+    if [ "$2" == "set" ]; then
+        if [ -z "$4" ]; then echo "Usage: ghost-browser cookies set <name> <value>"; exit 1; fi
+        curl -s -X POST "$API_URL/cookies" \
+          -H "Content-Type: application/json" \
+          -d "{\"name\": \"$3\", \"value\": \"$4\"}"
+    else
+        curl -s "$API_URL/cookies"
+    fi
+    echo ""
+    ;;
+
   snapshot)
     ensure_curl
-    curl -s "$API_URL/snapshot"
+    if [ "$2" == "-i" ] || [ "$2" == "--interactive" ]; then
+      curl -s "$API_URL/snapshot/interactive"
+    else
+      curl -s "$API_URL/snapshot"
+    fi
     echo ""
     ;;
 

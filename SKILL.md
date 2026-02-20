@@ -33,34 +33,40 @@ ghost-browser status          # Check service health
 ```bash
 ghost-browser open <url>      # Navigate to URL (waits for network idle)
 ghost-browser snapshot        # Get page text content
+ghost-browser snapshot -i     # Get interactive elements with refs (@e1, @e2)
 ghost-browser screenshot      # Save screenshot to screenshot.png
+ghost-browser tabs            # List open tabs/windows
+ghost-browser switch <index>  # Switch focus to a specific tab
+ghost-browser cookies         # View or set (ghost-browser cookies set name val)
 ```
 
 ### Interaction (Stealth)
 
-All interactions use human simulation algorithms (Bezier curves, variable delays).
+All interactions use human simulation algorithms (Bezier curves, variable delays). You can use CSS selectors OR references from `snapshot -i` (e.g., `@e1`).
 
 ```bash
-ghost-browser click <selector>          # Click an element (CSS selector)
+ghost-browser click <selector>          # Click an element
+ghost-browser hover <selector>          # Move mouse to element
 ghost-browser type <selector> <text>    # Focus and type text with jitter
+ghost-browser fill <selector> <text>    # Clear field and type text
+ghost-browser scroll <y_offset>         # Humanized scroll (positive = down)
+ghost-browser press <key>               # Press key (Enter, Escape, Tab, etc.)
+ghost-browser wait <selector>           # Wait for element to appear
 ```
 
-## Example: Periodic Task
-
-If running a scheduled check:
+## Example: Form Submission with Refs
 
 ```bash
-# 1. Ensure service is up
+# 1. Open and find elements
 ghost-browser start
+ghost-browser open "https://example.com/login"
+ghost-browser snapshot -i
+# Output: [{"id": "@e1", "tagName": "input", "text": "Email"}, {"id": "@e2", "tagName": "button", "text": "Submit"}]
 
-# 2. Perform check
-ghost-browser open "https://google.com"
-ghost-browser type "textarea[name='q']" "weather in tokyo"
-ghost-browser click "input[name='btnK']"
-ghost-browser snapshot
-
-# 3. Cleanup (Optional, saves resources immediately)
-ghost-browser stop
+# 2. Interact using refs
+ghost-browser fill @e1 "user@test.com"
+ghost-browser click @e2
+ghost-browser wait ".dashboard"
 ```
 
 ## Troubleshooting

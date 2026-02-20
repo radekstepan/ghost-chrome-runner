@@ -67,10 +67,69 @@ app.post('/type', async (req, res) => {
   }
 });
 
+app.post('/fill', async (req, res) => {
+  try {
+    const { selector, text } = req.body;
+    await browser.stealthFill(selector, text);
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.post('/hover', async (req, res) => {
+  try {
+    const { selector } = req.body;
+    await browser.stealthHover(selector);
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.post('/scroll', async (req, res) => {
+  try {
+    const { y } = req.body;
+    await browser.stealthScroll(y);
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.post('/press', async (req, res) => {
+  try {
+    const { key } = req.body;
+    await browser.keyboardPress(key);
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.post('/wait', async (req, res) => {
+  try {
+    const { selector, timeout } = req.body;
+    await browser.waitForSelector(selector, timeout);
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 app.get('/snapshot', async (req, res) => {
   try {
     const snapshot = await browser.getSnapshot();
     res.json({ success: true, snapshot });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.get('/snapshot/interactive', async (req, res) => {
+  try {
+    const elements = await browser.getInteractiveElements();
+    res.json({ success: true, elements });
   } catch (e: any) {
     res.status(500).json({ success: false, error: e.message });
   }
@@ -81,6 +140,44 @@ app.get('/screenshot', async (req, res) => {
     const buffer = await browser.takeScreenshot();
     res.set('Content-Type', 'image/png');
     res.send(buffer);
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.get('/tabs', async (req, res) => {
+  try {
+    const tabs = await browser.getTabs();
+    res.json({ success: true, tabs });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.post('/switch', async (req, res) => {
+  try {
+    const { index } = req.body;
+    await browser.switchTab(index);
+    res.json({ success: true, index });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.get('/cookies', async (req, res) => {
+  try {
+    const cookies = await browser.getCookies();
+    res.json({ success: true, cookies });
+  } catch (e: any) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.post('/cookies', async (req, res) => {
+  try {
+    const { name, value, url } = req.body;
+    await browser.setCookie(name, value, url);
+    res.json({ success: true });
   } catch (e: any) {
     res.status(500).json({ success: false, error: e.message });
   }
