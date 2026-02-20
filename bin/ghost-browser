@@ -2,7 +2,32 @@
 # Wrapper for Ghost Chrome Runner API
 
 API_URL="http://localhost:3000"
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# Find the project directory
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do # resolve $SOURCE until the file is no longer a symlink
+  DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+  SOURCE=$(readlink "$SOURCE")
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE" # if $SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
+done
+DIR="$( cd -P "$( dirname "$SOURCE" )/.." && pwd )"
+
+# Check if docker-compose.yml exists in the project root
+if [ ! -f "$DIR/docker-compose.yml" ]; then
+  echo "❌ Error: Could not find docker-compose.yml in $DIR"
+  echo "Make sure the 'ghost-browser' script is located in the 'bin/' folder of the project repository."
+  exit 1
+fi
+
+# Detect docker compose or docker-compose
+if docker compose version &> /dev/null; then
+  DC_CMD="docker compose"
+elif docker-compose version &> /dev/null; then
+  DC_CMD="docker-compose"
+else
+  echo "❌ Error: docker compose not found."
+  exit 1
+fi
 
 function show_help() {
   echo "Usage: ghost-browser <command> [args...]"
@@ -74,19 +99,19 @@ case "$1" in
       echo "✅ Service is already running."
     else
       echo "👻 Starting Ghost Chrome container..."
-      cd "$DIR" && docker-compose up -d
+      cd "$DIR" && $DC_CMD up -d
       wait_for_service
     fi
     ;;
 
   stop)
     echo "🛑 Stopping Ghost Chrome..."
-    cd "$DIR" && docker-compose down
+    cd "$DIR" && $DC_CMD down
     ;;
 
   restart)
     echo "🔄 Restarting..."
-    cd "$DIR" && docker-compose down && docker-compose up -d
+    cd "$DIR" && $DC_CMD down && $DC_CMD up -d
     wait_for_service
     ;;
 
