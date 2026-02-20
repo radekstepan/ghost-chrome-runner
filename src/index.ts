@@ -280,10 +280,18 @@ app.get('/view', (req, res) => {
             max-height: 100%;
             box-shadow: 0 0 20px rgba(0,0,0,0.5); 
             opacity: 0;
-            transition: opacity 0.5s ease-in-out;
+            z-index: 10;
+            transition: opacity 0.4s ease-in-out;
+            pointer-events: none;
           }
           img.active {
             opacity: 1;
+            z-index: 20;
+            pointer-events: auto;
+          }
+          img.stale {
+            opacity: 1;
+            z-index: 10;
           }
           h1 { margin-bottom: 20px; }
           .status { margin-top: 10px; color: #888; font-size: 0.9em; }
@@ -308,25 +316,32 @@ app.get('/view', (req, res) => {
             const activeImg = activeId === 1 ? img1 : img2;
             const nextImg = activeId === 1 ? img2 : img1;
 
-            // Pre-load next image
             const newSrc = "/screenshot?t=" + Date.now();
+            nextImg.src = newSrc;
             
-            // Create a temporary image object to detect when the byte data is fully loaded
-            const tempImg = new Image();
-            tempImg.onload = () => {
-              nextImg.src = newSrc;
+            nextImg.onload = () => {
+              // Ensure nextImg fades in on TOP of the current one
               nextImg.classList.add('active');
+              
+              // Keep old one visible but behind (no transition out)
               activeImg.classList.remove('active');
+              activeImg.classList.add('stale');
+              
               activeId = nextId;
               
               timerEl.textContent = "Last sync: " + new Date().toLocaleTimeString();
+              
+              // Cleanup old image after transition
+              setTimeout(() => {
+                activeImg.classList.remove('stale');
+              }, 500);
+
               setTimeout(updateImage, 1000); // 1s delay AFTER load
             };
-            tempImg.onerror = () => {
+            nextImg.onerror = () => {
               console.error("Failed to load screenshot");
               setTimeout(updateImage, 2000);
             };
-            tempImg.src = newSrc;
           }
 
           // Initial start
