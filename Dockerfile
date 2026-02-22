@@ -39,17 +39,17 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /app
 
 # Copy dependency definitions
-COPY package.json tsconfig.json ./
+COPY package.json yarn.lock tsconfig.json ./
 
 # Install Node dependencies
-RUN npm install
+RUN yarn install --frozen-lockfile
 
 # Copy source code and scripts
 COPY src ./src
 COPY scripts ./scripts
 
 # Build the TypeScript project
-RUN npm run build
+RUN yarn build
 
 # Make scripts executable
 RUN chmod +x ./scripts/entrypoint.sh

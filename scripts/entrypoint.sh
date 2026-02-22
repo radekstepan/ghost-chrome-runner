@@ -57,4 +57,4 @@ done
 
 # 5. Start the Node.js Controller
 echo "🧠 Starting Stealth Controller..."
-exec npm start
+exec yarn start
