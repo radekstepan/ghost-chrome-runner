@@ -14,10 +14,10 @@ services:
       - CHROME_ARGS=--window-size=1920,1080
       # Auto-shutdown after 300 seconds (5 mins) of inactivity
       # Set to 0 to disable
-      - IDLE_TIMEOUT=300
+      - IDLE_TIMEOUT=0
     shm_size: '2gb'
-    # Restart only if it crashes, NOT if we exit cleanly (idle timeout)
-    restart: on-failure
+    # Restart unless manually stopped
+    restart: unless-stopped
 
 volumes:
   chrome_data:

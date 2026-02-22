@@ -48,6 +48,9 @@ RUN npm install
 COPY src ./src
 COPY scripts ./scripts
 
+# Build the TypeScript project
+RUN npm run build
+
 # Make scripts executable
 RUN chmod +x ./scripts/entrypoint.sh
 

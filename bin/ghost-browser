@@ -122,23 +122,8 @@ case "$1" in
     CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
     git pull origin "$CURRENT_BRANCH"
 
-    # Load nvm if available
-    export NVM_DIR="$HOME/.nvm"
-    if ! command -v nvm &> /dev/null; then
-      [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-    fi
-
-    if command -v nvm &> /dev/null; then
-      nvm use
-    else
-      echo "⚠️  nvm not found, skipping 'nvm use'"
-    fi
-
-    if command -v yarn &> /dev/null; then
-      yarn install
-    else
-      npm install
-    fi
+    echo "🐳 Rebuilding Docker image..."
+    cd "$DIR" && $DC_CMD build
     ./scripts/docker-reset.sh
     ;;
 
