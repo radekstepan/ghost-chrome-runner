@@ -40,7 +40,7 @@ ghost-browser update          # Automatically pull code, install dependencies, a
 ### Navigation & Inspection
 
 ```bash
-ghost-browser open <url>      # Navigate to URL (waits for network idle)
+ghost-browser open <url>      # Navigate to URL (waits for network idle) (alias: navigate)
 ghost-browser snapshot        # Get page text content
 ghost-browser snapshot -i     # Get interactive elements with refs (@e1, @e2)
 ghost-browser screenshot      # Save screenshot to screenshot.png

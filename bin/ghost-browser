@@ -42,7 +42,7 @@ function show_help() {
   echo "  logs                Show Chrome internal logs"
   echo ""
   echo "Browser:"
-  echo "  open <url>          Navigate to a URL"
+  echo "  open <url>          Navigate to a URL (alias: navigate)"
   echo "  click <selector>    Click an element (human-like)"
   echo "  dblclick <selector> Double-click an element"
   echo "  drag <src> <dest>   Drag and drop (human-like)"
@@ -148,9 +148,9 @@ case "$1" in
     fi
     ;;
 
-  open)
+  open|navigate)
     ensure_curl
-    if [ -z "$2" ]; then echo "Usage: ghost-browser open <url>"; exit 1; fi
+    if [ -z "$2" ]; then echo "Usage: ghost-browser $1 <url>"; exit 1; fi
     SAFE_URL=$(echo "$2" | sed 's/"/\\"/g')
     curl -s -X POST "$API_URL/navigate" \
       -H "Content-Type: application/json" \
