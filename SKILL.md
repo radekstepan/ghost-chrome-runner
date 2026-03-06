@@ -41,11 +41,11 @@ existing content intact.
 # == Ghost Chrome Runner =======================================================
 # Install Xvfb (virtual display) and Chrome shared library dependencies.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        wget gnupg ca-certificates git xvfb x11-utils \
+        wget gnupg ca-certificates xvfb x11-utils \
         fonts-liberation libasound2 libatk-bridge2.0-0 libatk1.0-0 \
         libcups2 libdbus-1-3 libdrm2 libgbm1 libgtk-3-0 libnspr4 libnss3 \
         libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libxshmfence1 \
-        xdg-utils curl \
+        xdg-utils \
     && rm -rf /var/lib/apt/lists/*
 
 # Install official Google Chrome Stable from Google's APT repo.
@@ -68,6 +68,11 @@ RUN git clone --depth=1 \
 # Copy the background-service startup script.
 COPY scripts/start-ghost.sh /opt/ghost-chrome-runner/start-ghost.sh
 RUN chmod +x /opt/ghost-chrome-runner/start-ghost.sh
+
+# Pre-create log and Chrome profile dirs with correct ownership.
+# NanoClaw runs containers as the non-root 'node' user, so these
+# directories must exist and be writable before the entrypoint runs.
+RUN mkdir -p /var/log /data/chrome-profile && chown -R node:node /var/log /data
 
 ENV CHROME_PATH=/usr/bin/google-chrome-stable
 ENV DISPLAY=:99
@@ -129,12 +134,21 @@ done
 
 ### Step 3 — Inject Ghost startup into the container entrypoint
 
-Open `container/entrypoint.sh` (or whichever script is the container ENTRYPOINT).
-Add the following line **before** the line that starts the Node.js agent runner
-(i.e. before the final `node` / `exec` / `npx` call):
+NanoClaw does **not** have an `entrypoint.sh` source file. The entrypoint is
+generated inline inside `container/Dockerfile` by a `RUN printf '...'` command.
 
-```bash
-bash /opt/ghost-chrome-runner/start-ghost.sh
+Find the line in `container/Dockerfile` that looks like this (it creates
+`/app/entrypoint.sh`):
+
+```dockerfile
+RUN printf '#!/bin/bash\nset -e\n...\ncat > /tmp/input.json\nnode /tmp/dist/index.js < /tmp/input.json\n' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
+```
+
+Insert `bash /opt/ghost-chrome-runner/start-ghost.sh\n` into that printf string
+**immediately before** `cat > /tmp/input.json\n`, so the result is:
+
+```dockerfile
+RUN printf '#!/bin/bash\nset -e\ncd /app && npx tsc --outDir /tmp/dist 2>&1 >&2\nln -s /app/node_modules /tmp/dist/node_modules\nchmod -R a-w /tmp/dist\nbash /opt/ghost-chrome-runner/start-ghost.sh\ncat > /tmp/input.json\nnode /tmp/dist/index.js < /tmp/input.json\n' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
 ```
 
 ### Step 4 — Copy this skill into the container skills directory
@@ -146,22 +160,16 @@ mkdir -p container/skills
 cp SKILL.md container/skills/ghost-chrome.md
 ```
 
-### Step 5 — Rebuild and propagate
+### Step 5 — Rebuild
 
 ```bash
-# Rebuild the agent container image
 cd container && ./build.sh
-
-# Propagate updated agent-runner source to all existing session directories
-for d in ../data/sessions/*/agent-runner-src; do
-  cp -r src/. "$d/"
-done
 ```
 
 If `build.sh` does not exist, use:
 
 ```bash
-docker build -t nanoclaw-agent .
+docker build -t nanoclaw-agent ./container
 ```
 
 Verify by starting a new agent and running:
