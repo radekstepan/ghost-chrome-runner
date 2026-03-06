@@ -3,6 +3,9 @@ set -e
 
 echo "👻 Starting Ghost Chrome Runner..."
 
+# 0. Create required directories
+mkdir -p /var/log /data/chrome-profile
+
 # 1. Clean up any stale X11 lock files (common in Docker restarts)
 rm -f /tmp/.X99-lock
 
@@ -29,12 +32,13 @@ fi
 
 # 3. Start Google Chrome Stable
 # Redirect output to file to suppress DBus errors in docker logs
-echo "🚀 Launching Google Chrome (logs -> /var/log/chrome.log)..."
+CHROME_DEBUG_PORT="${CHROME_DEBUG_PORT:-9222}"
+echo "🚀 Launching Google Chrome on CDP port $CHROME_DEBUG_PORT (logs -> /var/log/chrome.log)..."
 google-chrome-stable \
   --no-sandbox \
   --disable-dev-shm-usage \
   --disable-gpu \
-  --remote-debugging-port=9222 \
+  --remote-debugging-port="$CHROME_DEBUG_PORT" \
   --remote-debugging-address=0.0.0.0 \
   --user-data-dir=/data/chrome-profile \
   --start-maximized \
@@ -46,9 +50,9 @@ google-chrome-stable \
   > /var/log/chrome.log 2>&1 &
 
 # 4. Wait for Chrome CDP to be reachable
-echo "⏳ Waiting for Chrome CDP on port 9222..."
+echo "⏳ Waiting for Chrome CDP on port $CHROME_DEBUG_PORT..."
 for i in {1..30}; do
-  if curl -s http://127.0.0.1:9222/json/version > /dev/null; then
+  if curl -s "http://127.0.0.1:${CHROME_DEBUG_PORT}/json/version" > /dev/null; then
     echo "✅ Chrome is ready and listening"
     break
   fi
@@ -57,4 +61,4 @@ done
 
 # 5. Start the Node.js Controller
 echo "🧠 Starting Stealth Controller..."
-exec yarn start
+exec node dist/index.js

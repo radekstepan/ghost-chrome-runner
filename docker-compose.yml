@@ -6,8 +6,11 @@ services:
     platform: linux/amd64
     container_name: ghost-browser
     ports:
-      - "3000:3000"
-      - "9222:9222"
+      # Override host-side ports via env vars to avoid conflicts when multiple
+      # ghost-browser instances run on the same host.
+      # e.g.: GHOST_HOST_PORT=3001 docker compose up
+      - "${GHOST_HOST_PORT:-3000}:3000"
+      - "${CHROME_HOST_PORT:-9222}:9222"
     volumes:
       - chrome_data:/data/chrome-profile
     environment:

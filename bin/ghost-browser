@@ -1,7 +1,8 @@
 #!/bin/bash
 # Wrapper for Ghost Chrome Runner API
 
-API_URL="http://localhost:3000"
+# Override via GHOST_API_URL env var when the service runs on a non-default port.
+API_URL="${GHOST_API_URL:-http://localhost:3000}"
 
 # Find the project directory
 SOURCE="${BASH_SOURCE[0]}"

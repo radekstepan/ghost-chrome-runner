@@ -20,6 +20,19 @@ GHOST_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 echo "👻 Starting Ghost Chrome Runner (service mode)..."
 echo "   Project root: $GHOST_ROOT"
 
+# Auto-detect a free port for the REST API if PORT is not already set.
+# This prevents conflicts when multiple containers share the same host network.
+if [ -z "${PORT:-}" ]; then
+  PORT=$(python3 -c "import socket; s=socket.socket(); s.bind(('',0)); print(s.getsockname()[1]); s.close()")
+  export PORT
+fi
+# Write the chosen port to a well-known file so the calling agent can discover it.
+echo "$PORT" > /tmp/ghost-port
+echo "   REST API port: $PORT (written to /tmp/ghost-port)"
+
+CHROME_DEBUG_PORT="${CHROME_DEBUG_PORT:-9222}"
+export CHROME_DEBUG_PORT
+
 # 1. Clean up any stale X11 lock files (common after container restarts)
 rm -f /tmp/.X99-lock
 
@@ -44,13 +57,13 @@ if ! xdpyinfo -display :99 >/dev/null 2>&1; then
 fi
 
 # 3. Start Google Chrome with remote debugging
-echo "🚀 Launching Google Chrome (logs -> /var/log/chrome.log)..."
+echo "🚀 Launching Google Chrome on CDP port $CHROME_DEBUG_PORT (logs -> /var/log/chrome.log)..."
 mkdir -p /var/log
 google-chrome-stable \
   --no-sandbox \
   --disable-dev-shm-usage \
   --disable-gpu \
-  --remote-debugging-port=9222 \
+  --remote-debugging-port="$CHROME_DEBUG_PORT" \
   --remote-debugging-address=0.0.0.0 \
   --user-data-dir=/data/chrome-profile \
   --start-maximized \
@@ -62,16 +75,16 @@ google-chrome-stable \
   > /var/log/chrome.log 2>&1 &
 
 # 4. Wait for Chrome CDP to be reachable
-echo "⏳ Waiting for Chrome CDP on port 9222..."
+echo "⏳ Waiting for Chrome CDP on port $CHROME_DEBUG_PORT..."
 for i in {1..30}; do
-  if curl -s http://127.0.0.1:9222/json/version > /dev/null 2>&1; then
+  if curl -s "http://127.0.0.1:${CHROME_DEBUG_PORT}/json/version" > /dev/null 2>&1; then
     echo "✅ Chrome is ready and listening"
     break
   fi
   sleep 1
 done
 
-if ! curl -s http://127.0.0.1:9222/json/version > /dev/null 2>&1; then
+if ! curl -s "http://127.0.0.1:${CHROME_DEBUG_PORT}/json/version" > /dev/null 2>&1; then
   echo "❌ Error: Chrome CDP did not become ready."
   exit 1
 fi
@@ -84,16 +97,16 @@ node dist/index.js > /var/log/ghost-chrome.log 2>&1 &
 GHOST_PID=$!
 
 # 6. Wait for the REST API to be ready
-echo "⏳ Waiting for Ghost API on port 3000..."
+echo "⏳ Waiting for Ghost API on port $PORT..."
 for i in {1..15}; do
-  if curl -s http://localhost:3000/health > /dev/null 2>&1; then
-    echo "✅ Ghost Chrome Runner is up on http://localhost:3000 (PID $GHOST_PID)"
+  if curl -s "http://localhost:${PORT}/health" > /dev/null 2>&1; then
+    echo "✅ Ghost Chrome Runner is up on http://localhost:${PORT} (PID $GHOST_PID)"
     break
   fi
   sleep 1
 done
 
-if ! curl -s http://localhost:3000/health > /dev/null 2>&1; then
+if ! curl -s "http://localhost:${PORT}/health" > /dev/null 2>&1; then
   echo "❌ Error: Ghost API did not start. Check /var/log/ghost-chrome.log"
   exit 1
 fi

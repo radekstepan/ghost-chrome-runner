@@ -94,6 +94,19 @@ set -e
 
 echo "Ghost: starting..."
 
+# Auto-detect a free REST API port so multiple agent containers can run
+# concurrently without competing for port 3000 on the host.
+if [ -z "${PORT:-}" ]; then
+  PORT=$(python3 -c "import socket; s=socket.socket(); s.bind(('',0)); print(s.getsockname()[1]); s.close()")
+  export PORT
+fi
+# Write the chosen port to a well-known file so the agent process can read it.
+echo "$PORT" > /tmp/ghost-port
+echo "Ghost: REST API will bind to port $PORT (written to /tmp/ghost-port)"
+
+CHROME_DEBUG_PORT="${CHROME_DEBUG_PORT:-9222}"
+export CHROME_DEBUG_PORT
+
 # 1. Remove stale X11 lock from previous container runs.
 rm -f /tmp/.X99-lock
 
@@ -108,26 +121,26 @@ done
 mkdir -p /var/log /data/chrome-profile
 google-chrome-stable \
   --no-sandbox --disable-dev-shm-usage --disable-gpu \
-  --remote-debugging-port=9222 --remote-debugging-address=0.0.0.0 \
+  --remote-debugging-port="$CHROME_DEBUG_PORT" --remote-debugging-address=127.0.0.1 \
   --user-data-dir=/data/chrome-profile \
   --start-maximized --no-first-run --no-default-browser-check \
   --disable-notifications --disable-infobars \
   --disable-blink-features=AutomationControlled \
   >/var/log/chrome.log 2>&1 &
 for i in {1..30}; do
-  curl -s http://127.0.0.1:9222/json/version >/dev/null 2>&1 \
+  curl -s "http://127.0.0.1:${CHROME_DEBUG_PORT}/json/version" >/dev/null 2>&1 \
     && echo "Ghost: Chrome CDP ready" && break
   sleep 1
 done
 
-# 4. Start the Ghost REST controller (port 3000) in the background.
+# 4. Start the Ghost REST controller in the background.
 cd /opt/ghost-chrome-runner
 node dist/index.js >/var/log/ghost-chrome.log 2>&1 &
 
 # 5. Poll until the REST API is accepting requests.
 for i in {1..15}; do
-  curl -s http://localhost:3000/health >/dev/null 2>&1 \
-    && echo "Ghost: REST API up on http://localhost:3000" && break
+  curl -s "http://localhost:${PORT}/health" >/dev/null 2>&1 \
+    && echo "Ghost: REST API up on http://localhost:${PORT}" && break
   sleep 1
 done
 ```
@@ -144,12 +157,27 @@ Find the line in `container/Dockerfile` that looks like this (it creates
 RUN printf '#!/bin/bash\nset -e\n...\ncat > /tmp/input.json\nnode /tmp/dist/index.js < /tmp/input.json\n' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
 ```
 
-Insert `bash /opt/ghost-chrome-runner/start-ghost.sh\n` into that printf string
-**immediately before** `cat > /tmp/input.json\n`, so the result is:
+Insert the following two lines into that printf string **immediately before**
+`cat > /tmp/input.json\n`:
+
+```
+bash /opt/ghost-chrome-runner/start-ghost.sh\n
+export PORT=$(cat /tmp/ghost-port)\n
+export CHROME_DEBUG_PORT=${CHROME_DEBUG_PORT:-9222}\n
+```
+
+So the result is:
 
 ```dockerfile
-RUN printf '#!/bin/bash\nset -e\ncd /app && npx tsc --outDir /tmp/dist 2>&1 >&2\nln -s /app/node_modules /tmp/dist/node_modules\nchmod -R a-w /tmp/dist\nbash /opt/ghost-chrome-runner/start-ghost.sh\ncat > /tmp/input.json\nnode /tmp/dist/index.js < /tmp/input.json\n' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
+RUN printf '#!/bin/bash\nset -e\ncd /app && npx tsc --outDir /tmp/dist 2>&1 >&2\nln -s /app/node_modules /tmp/dist/node_modules\nchmod -R a-w /tmp/dist\nbash /opt/ghost-chrome-runner/start-ghost.sh\nexport PORT=$(cat /tmp/ghost-port)\nexport CHROME_DEBUG_PORT=${CHROME_DEBUG_PORT:-9222}\ncat > /tmp/input.json\nnode /tmp/dist/index.js < /tmp/input.json\n' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
 ```
+
+> **Do NOT add `-p 3000:3000` to the `docker run` args for NanoClaw agent
+> containers.** Ghost Chrome binds to a free ephemeral port chosen at startup
+> and writes it to `/tmp/ghost-port`. The agent reads it via
+> `export PORT=$(cat /tmp/ghost-port)`. Exposing Ghost's port to the host is
+> unnecessary (the agent talks to it via localhost) and causes bind conflicts
+> when multiple agent containers run concurrently.
 
 ### Step 4 — Copy this skill into the container skills directory
 

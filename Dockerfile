@@ -42,7 +42,7 @@ WORKDIR /app
 COPY package.json yarn.lock tsconfig.json ./
 
 # Install Node dependencies
-RUN yarn install --frozen-lockfile
+RUN yarn install --frozen-lockfile || npm install
 
 # Copy source code and scripts
 COPY src ./src
@@ -52,12 +52,16 @@ COPY scripts ./scripts
 RUN yarn build
 
 # Make scripts executable
-RUN chmod +x ./scripts/entrypoint.sh
+RUN chmod +x ./scripts/start-ghost.sh
 
 # Environment variables
 ENV DISPLAY=:99
+# CHROME_DEBUG_PORT: CDP port Chrome listens on inside the container.
+ENV CHROME_DEBUG_PORT=9222
+# PORT defaults to 3000 but can be overridden at runtime via -e PORT=...
+# when the host port 3000 is already taken by another container.
 ENV PORT=3000
 
 EXPOSE 3000 9222
 
-ENTRYPOINT ["./scripts/entrypoint.sh"]
+ENTRYPOINT ["./scripts/start-ghost.sh"]

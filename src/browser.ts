@@ -12,8 +12,9 @@ export class BrowserController {
     while (retries > 0) {
       try {
         console.log(`🔌 Connecting to Chrome... (${retries} attempts left)`);
+        const cdpPort = process.env.CHROME_DEBUG_PORT ?? '9222';
         this.browser = await puppeteer.connect({
-          browserURL: 'http://127.0.0.1:9222',
+          browserURL: `http://127.0.0.1:${cdpPort}`,
           defaultViewport: null
         });
 
