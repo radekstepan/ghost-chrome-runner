@@ -65,9 +65,12 @@ RUN git clone --depth=1 \
     && npm install \
     && npm run build
 
-# Copy the background-service startup script.
+# Copy the background-service startup script and the ghost CLI.
 COPY scripts/start-ghost.sh /opt/ghost-chrome-runner/start-ghost.sh
-RUN chmod +x /opt/ghost-chrome-runner/start-ghost.sh
+COPY scripts/ghost-cli.sh /opt/ghost-chrome-runner/scripts/ghost-cli.sh
+RUN chmod +x /opt/ghost-chrome-runner/start-ghost.sh \
+        /opt/ghost-chrome-runner/scripts/ghost-cli.sh \
+    && ln -sf /opt/ghost-chrome-runner/scripts/ghost-cli.sh /usr/local/bin/ghost
 
 # Pre-create log and Chrome profile dirs with correct ownership.
 # NanoClaw runs containers as the non-root 'node' user, so these
@@ -203,7 +206,7 @@ docker build -t nanoclaw-agent ./container
 Verify by starting a new agent and running:
 
 ```bash
-curl -s http://localhost:3000/health | jq .
+ghost health
 # Expected: {"status":"ok","chrome":true}
 ```
 
@@ -211,136 +214,86 @@ curl -s http://localhost:3000/health | jq .
 
 ## Part 2 — Agent Usage (inside the container after setup)
 
-> Use this section when **performing a browser task**. Ghost Chrome is already
-> running on `http://localhost:3000`. Never try to start Docker containers.
-> All interactions simulate human input and are indistinguishable from a real
-> user to standard bot-detection systems.
+> Use this section when **performing a browser task**. The `ghost` CLI is on
+> PATH. It **auto-starts Ghost Chrome on first use** — no manual startup, no
+> waiting, no port management needed. All interactions simulate human input
+> and are indistinguishable from a real user to standard bot-detection systems.
 
 ### Health check
 
 ```bash
-curl -s http://localhost:3000/health | jq .
-# Expected: {"status":"ok","chrome":true}
+ghost health
+# {"status":"ok","chrome":true}
 ```
 
 ### Navigation & Inspection
 
 ```bash
 # Navigate to URL (waits for network idle automatically)
-curl -s -X POST http://localhost:3000/navigate \
-  -H 'Content-Type: application/json' \
-  -d '{"url":"https://example.com"}' | jq .
+ghost navigate https://example.com
 
 # Get page text content
-curl -s http://localhost:3000/snapshot
+ghost snapshot
 
 # Get interactive elements with @ref labels (@e1, @e2, ...)
-curl -s 'http://localhost:3000/snapshot/interactive' | jq .
+ghost snapshot interactive
 
-# Save screenshot to file
-curl -s http://localhost:3000/screenshot --output screenshot.png
+# Save screenshot (default filename: screenshot.png)
+ghost screenshot
+ghost screenshot result.png
 
 # Highlight element (visual debug)
-curl -s -X POST http://localhost:3000/highlight \
-  -H 'Content-Type: application/json' \
-  -d '{"selector":"#main"}' | jq .
+ghost highlight "#main"
 
-# List open tabs
-curl -s http://localhost:3000/tabs | jq .
+# List open tabs / switch tab
+ghost tabs
+ghost switch 0
 
-# Switch to a tab by index
-curl -s -X POST http://localhost:3000/switch \
-  -H 'Content-Type: application/json' \
-  -d '{"index":0}' | jq .
-
-# Focus an iframe  ("main" returns to top frame)
-curl -s -X POST http://localhost:3000/frame \
-  -H 'Content-Type: application/json' \
-  -d '{"selector":"#my-frame"}' | jq .
+# Focus an iframe ("main" returns to top frame)
+ghost frame "#my-frame"
+ghost frame main
 
 # List cookies
-curl -s http://localhost:3000/cookies | jq .
-
-# Set a cookie
-curl -s -X POST http://localhost:3000/cookies \
-  -H 'Content-Type: application/json' \
-  -d '{"name":"session","value":"abc123","url":"https://example.com"}' | jq .
+ghost cookies
 
 # View recent Chrome / Ghost logs
-curl -s http://localhost:3000/logs
+ghost logs
 ```
 
 ### Interaction (Stealth)
 
-All interactions use Bezier mouse curves and per-keystroke jitter (30-130 ms).
-Use CSS selectors **or** `@ref` labels from `snapshot/interactive`.
+All interactions use Bezier mouse curves and per-keystroke jitter (30–130 ms).
+Use CSS selectors **or** `@ref` labels from `ghost snapshot interactive`.
 
 ```bash
-# Click
-curl -s -X POST http://localhost:3000/click \
-  -H 'Content-Type: application/json' \
-  -d '{"selector":"button#submit"}' | jq .
+ghost click "button#submit"
+ghost click "#item" double          # double-click
 
-# Double-click
-curl -s -X POST http://localhost:3000/click \
-  -H 'Content-Type: application/json' \
-  -d '{"selector":"#item","double":true}' | jq .
+ghost drag "#card" "#dropzone"
 
-# Drag
-curl -s -X POST http://localhost:3000/drag \
-  -H 'Content-Type: application/json' \
-  -d '{"source":"#card","target":"#dropzone"}' | jq .
+ghost hover "#menu"
 
-# Hover
-curl -s -X POST http://localhost:3000/hover \
-  -H 'Content-Type: application/json' \
-  -d '{"selector":"#menu"}' | jq .
+ghost type "input[name=q]" "latest news"   # appends to existing value
+ghost fill "#email" "user@example.com"     # clears then types
 
-# Type with jitter (appends to existing value)
-curl -s -X POST http://localhost:3000/type \
-  -H 'Content-Type: application/json' \
-  -d '{"selector":"input[name=q]","text":"latest news"}' | jq .
+ghost scroll 500    # down; negative = up
 
-# Fill (clears then types)
-curl -s -X POST http://localhost:3000/fill \
-  -H 'Content-Type: application/json' \
-  -d '{"selector":"#email","text":"user@example.com"}' | jq .
+ghost press Enter
+ghost press Tab
 
-# Scroll (positive = down)
-curl -s -X POST http://localhost:3000/scroll \
-  -H 'Content-Type: application/json' \
-  -d '{"y":500}' | jq .
+ghost upload "input[type=file]" "/tmp/doc.pdf"
 
-# Key press
-curl -s -X POST http://localhost:3000/press \
-  -H 'Content-Type: application/json' \
-  -d '{"key":"Enter"}' | jq .
-
-# File upload
-curl -s -X POST http://localhost:3000/upload \
-  -H 'Content-Type: application/json' \
-  -d '{"selector":"input[type=file]","filePath":"/tmp/doc.pdf"}' | jq .
-
-# Wait for element (timeout ms, default 30000)
-curl -s -X POST http://localhost:3000/wait \
-  -H 'Content-Type: application/json' \
-  -d '{"selector":".dashboard","timeout":15000}' | jq .
+ghost wait ".dashboard"            # default 30s timeout
+ghost wait ".modal" 5000           # custom timeout (ms)
 ```
 
 ### Example: Google Search without Bot Detection
 
 ```bash
-curl -s -X POST http://localhost:3000/navigate \
-  -H 'Content-Type: application/json' -d '{"url":"https://google.com"}' | jq .
-
-curl -s -X POST http://localhost:3000/type \
-  -H 'Content-Type: application/json' \
-  -d '{"selector":"textarea[name=q]","text":"latest news"}' | jq .
-
-curl -s -X POST http://localhost:3000/press \
-  -H 'Content-Type: application/json' -d '{"key":"Enter"}' | jq .
-
-curl -s http://localhost:3000/snapshot
+ghost navigate https://google.com
+ghost type "textarea[name=q]" "latest news"
+ghost press Enter
+ghost snapshot
 ```
 
 ### Example: Login Form with @ref Labels

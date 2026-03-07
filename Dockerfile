@@ -51,8 +51,9 @@ COPY scripts ./scripts
 # Build the TypeScript project
 RUN yarn build
 
-# Make scripts executable
-RUN chmod +x ./scripts/start-ghost.sh
+# Make scripts executable and put the ghost CLI on PATH
+RUN chmod +x ./scripts/start-ghost.sh ./scripts/ghost-cli.sh \
+    && ln -sf /app/scripts/ghost-cli.sh /usr/local/bin/ghost
 
 # Environment variables
 ENV DISPLAY=:99
